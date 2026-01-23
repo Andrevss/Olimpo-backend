@@ -3,6 +3,7 @@
 // ============================================
 using Microsoft.EntityFrameworkCore;
 using Olimpo.ProductAPI.Model.Context;
+using Olimpo.ProductAPI.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,7 +13,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
-// CORS - Essencial para seu React consumir a API
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
@@ -33,11 +33,11 @@ builder.Services.AddDbContext<MySQLContext>(options =>
 // AutoMapper
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
-// Dependency Injection - Descomente conforme for criando
-// builder.Services.AddScoped<IProductRepository, ProductRepository>();
-// builder.Services.AddScoped<IProductService, ProductService>();
 
-// Swagger
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
