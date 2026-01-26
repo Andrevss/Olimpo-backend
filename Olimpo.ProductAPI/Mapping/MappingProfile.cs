@@ -20,6 +20,23 @@ namespace Olimpo.ProductAPI.Mappings
 
             CreateMap<CreateProductDTO, Product>();
             CreateMap<UpdateProductDTO, Product>();
+
+            // ========== ORDER MAPPINGS ==========
+            CreateMap<Order, OrderDTO>()
+            .ForMember(dest => dest.Status,
+                      opt => opt.MapFrom(src => src.Status.ToString()));
+
+            CreateMap<CreateOrderDTO, Order>()
+                .ForMember(dest => dest.OrderItems, opt => opt.Ignore())
+                .ForMember(dest => dest.Total, opt => opt.Ignore())
+                .ForMember(dest => dest.Status, opt => opt.Ignore());
+
+            CreateMap<OrderItem, OrderItemDTO>();
+
+            CreateMap<CreateOrderItemDTO, OrderItem>()
+                .ForMember(dest => dest.ProductName, opt => opt.Ignore())
+                .ForMember(dest => dest.UnitPrice, opt => opt.Ignore())
+                .ForMember(dest => dest.TotalPrice, opt => opt.Ignore());
         }
     }
 }

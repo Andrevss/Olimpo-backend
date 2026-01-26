@@ -10,6 +10,8 @@ namespace Olimpo.ProductAPI.Model.Context
         // DbSets - Representam as tabelas no banco
         public DbSet<Product> Products { get; set; }
         public DbSet<Category> Categories { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -89,6 +91,86 @@ namespace Olimpo.ProductAPI.Model.Context
                 // Índices para performance
                 entity.HasIndex(e => e.Name);
                 entity.HasIndex(e => e.CategoryId);
+            });
+
+            // ============================================
+            // CONFIGURAÇÃO DA TABELA ORDER
+            // ============================================
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.ToTable("orders");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.NomeCompleto)
+                    .IsRequired()
+                    .HasMaxLength(100);
+                entity.Property(e => e.Email)
+                    .IsRequired()
+                    .HasMaxLength(100);
+                entity.Property(e => e.Telefone)
+                    .IsRequired()
+                    .HasMaxLength(15);
+                entity.Property(e => e.Rua)
+                    .IsRequired()
+                    .HasMaxLength(150);
+                entity.Property(e => e.Numero)
+                    .IsRequired()
+                    .HasMaxLength(10);
+                entity.Property(e => e.Bairro)
+                    .IsRequired()
+                    .HasMaxLength(100);
+                entity.Property(e => e.Cidade)
+                    .IsRequired()
+                    .HasMaxLength(100);
+                entity.Property(e => e.Estado)
+                    .IsRequired()
+                    .HasMaxLength(50);
+                entity.Property(e => e.Cep)
+                    .IsRequired()
+                    .HasMaxLength(20);
+                entity.Property(e => e.Complemento)
+                    .HasMaxLength(250);
+
+                entity.Property(e => e.Total)
+                    .IsRequired()
+                    .HasColumnType("decimal(10,2)");
+                entity.Property(e => e.Status)
+                    .IsRequired();
+                entity.Property(e => e.MercadoPagoPaymentId)
+                    .HasMaxLength(100);
+                entity.Property(e => e.MercadoPagoPaymentStatus)
+                    .HasMaxLength(50);
+
+                entity.HasIndex(e => e.Email);
+                entity.HasIndex(e => e.MercadoPagoPaymentId);
+            });
+
+            // ============================================
+            // CONFIGURAÇÃO DA TABELA ORDERITEM
+            // ============================================
+
+            modelBuilder.Entity<OrderItem>(entity =>
+            {
+                entity.ToTable("order_items");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.ProductName).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.UnitPrice).HasColumnType("decimal(10,2)");
+                entity.Property(e => e.Quantity).IsRequired();
+                entity.Property(e => e.TotalPrice).HasColumnType("decimal(10,2)");
+
+                entity.HasOne(oi => oi.Order)
+                    .WithMany(o => o.OrderItems)
+                    .HasForeignKey(oi => oi.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(oi => oi.Product)
+                    .WithMany()
+                    .HasForeignKey(oi => oi.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.OrderId);
+                entity.HasIndex(e => e.ProductId);
             });
 
             // ============================================
