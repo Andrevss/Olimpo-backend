@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Olimpo.ProductAPI.Model.Context;
 using Olimpo.ProductAPI.Repository;
+using Olimpo.ProductAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,7 +35,7 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-
+builder.Services.AddHttpClient<IMercadoPagoService, MercadoPagoService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

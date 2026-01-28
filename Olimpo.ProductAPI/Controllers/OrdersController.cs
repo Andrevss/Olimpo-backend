@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Olimpo.ProductAPI.Model.DTOs;
 using Olimpo.ProductAPI.Model.Entities;
 using Olimpo.ProductAPI.Repository;
+using Olimpo.ProductAPI.Services;
 
 namespace Olimpo.ProductAPI.Controllers
 {
@@ -12,12 +13,14 @@ namespace Olimpo.ProductAPI.Controllers
     {
         private readonly IOrderRepository _orderRepository;
         private readonly IProductRepository _productRepository;
+        private readonly IMercadoPagoService _mercadoPagoService;
         private readonly IMapper _mapper;
 
-        public OrdersController(IOrderRepository orderRepository, IProductRepository productRepository, IMapper mapper)
+        public OrdersController(IOrderRepository orderRepository, IProductRepository productRepository, IMercadoPagoService mercadoPagoService, IMapper mapper)
         {
             _orderRepository = orderRepository;
             _productRepository = productRepository;
+            _mercadoPagoService = mercadoPagoService;
             _mapper = mapper;
         }
 
@@ -27,7 +30,7 @@ namespace Olimpo.ProductAPI.Controllers
         {
             var orders = await _orderRepository.GetAllAsync();
             var ordersDto = _mapper.Map<IEnumerable<OrderDTO>>(orders);
-            return Ok(orders);
+            return Ok(ordersDto);
         }
 
         [HttpGet("{id}")]
@@ -49,7 +52,7 @@ namespace Olimpo.ProductAPI.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<OrderDTO>> Create([FromBody] CreateOrderDTO orderDto)
         {
-            // Validar e buscar produtos (UMA VEZ SÓ)
+            // Validar e buscar produtos (código existente mantém)
             var orderItems = new List<OrderItem>();
             var productsToUpdate = new List<Product>();
             decimal totalAmount = 0;
@@ -58,7 +61,6 @@ namespace Olimpo.ProductAPI.Controllers
             {
                 var product = await _productRepository.GetByIdAsync(item.ProductId);
 
-                // Validações
                 if (product == null)
                     return BadRequest(new { message = $"Produto ID {item.ProductId} não encontrado" });
 
@@ -68,12 +70,11 @@ namespace Olimpo.ProductAPI.Controllers
                 if (product.Stock < item.Quantity)
                     return BadRequest(new { message = $"Estoque insuficiente para '{product.Name}'. Disponível: {product.Stock}" });
 
-                // Criar item do pedido (SNAPSHOT dos dados)
                 var orderItem = new OrderItem
                 {
                     ProductId = product.Id,
-                    ProductName = product.Name,  // ✅ Salva nome
-                    UnitPrice = product.Price,   // ✅ Salva preço atual
+                    ProductName = product.Name,
+                    UnitPrice = product.Price,
                     Quantity = item.Quantity,
                     TotalPrice = product.Price * item.Quantity
                 };
@@ -81,7 +82,6 @@ namespace Olimpo.ProductAPI.Controllers
                 orderItems.Add(orderItem);
                 totalAmount += orderItem.TotalPrice;
 
-                // ✅ Atualizar estoque do produto
                 product.Stock -= item.Quantity;
                 product.UpdatedAt = DateTime.UtcNow;
                 productsToUpdate.Add(product);
@@ -95,13 +95,29 @@ namespace Olimpo.ProductAPI.Controllers
 
             var createdOrder = await _orderRepository.CreateAsync(order);
 
-            // Salvar alterações no estoque de TODOS os produtos
+            // Salvar alterações no estoque
             foreach (var product in productsToUpdate)
             {
                 await _productRepository.UpdateAsync(product);
             }
 
+            // CRIAR PREFERÊNCIA NO MERCADO PAGO
+            string paymentUrl;
+            try
+            {
+                paymentUrl = await _mercadoPagoService.CreatePreferenceAsync(createdOrder);
+
+                // Salvar ID da preferência no pedido
+                createdOrder.MercadoPagoId = paymentUrl.Split('/').Last(); // Extrai ID da URL
+                await _orderRepository.UpdateStatusAsync(createdOrder.Id, OrderStatus.Pendente);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Erro ao gerar link de pagamento", error = ex.Message });
+            }
+
             var resultDto = _mapper.Map<OrderDTO>(createdOrder);
+            resultDto.PaymentUrl = paymentUrl; // Retorna URL para o frontend
 
             return CreatedAtAction(
                 nameof(GetById),

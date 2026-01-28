@@ -40,7 +40,7 @@ namespace Olimpo.ProductAPI.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Total = table.Column<decimal>(type: "decimal(10,2)", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
-                    MercadoPagoPaymentId = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                    MercadoPagoId = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     MercadoPagoPaymentStatus = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -140,7 +140,7 @@ namespace Olimpo.ProductAPI.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_orders_MercadoPagoPaymentId",
                 table: "orders",
-                column: "MercadoPagoPaymentId");
+                column: "MercadoPagoId");
         }
 
         /// <inheritdoc />

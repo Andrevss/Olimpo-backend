@@ -128,7 +128,7 @@ namespace Olimpo.ProductAPI.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
-                    b.Property<string>("MercadoPagoPaymentId")
+                    b.Property<string>("MercadoPagoId")
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
@@ -169,7 +169,7 @@ namespace Olimpo.ProductAPI.Migrations
 
                     b.HasIndex("Email");
 
-                    b.HasIndex("MercadoPagoPaymentId");
+                    b.HasIndex("MercadoPagoId");
 
                     b.ToTable("orders", (string)null);
                 });

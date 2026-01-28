@@ -15,9 +15,8 @@
         public string Complemento { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
         public string Status { get; set; } = string.Empty;
-        public string? MercadoPagoId { get; set; }
-        public string? MercadoPagoStatus { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string? PaymentUrl { get; set; } 
         public List<OrderItemDTO> Items { get; set; } = new();
     }
 

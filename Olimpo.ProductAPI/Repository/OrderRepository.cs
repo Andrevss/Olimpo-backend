@@ -34,7 +34,7 @@ namespace Olimpo.ProductAPI.Repository
         {
             return await _context.Orders
                 .Include(o => o.OrderItems)
-                .FirstOrDefaultAsync(o => o.MercadoPagoPaymentId == mercadoPagoId);
+                .FirstOrDefaultAsync(o => o.MercadoPagoId == mercadoPagoId);
         }
 
         public async Task<Order> CreateAsync(Order order)

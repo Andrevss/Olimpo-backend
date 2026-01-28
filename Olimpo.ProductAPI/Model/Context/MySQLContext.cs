@@ -136,13 +136,13 @@ namespace Olimpo.ProductAPI.Model.Context
                     .HasColumnType("decimal(10,2)");
                 entity.Property(e => e.Status)
                     .IsRequired();
-                entity.Property(e => e.MercadoPagoPaymentId)
+                entity.Property(e => e.MercadoPagoId)
                     .HasMaxLength(100);
                 entity.Property(e => e.MercadoPagoPaymentStatus)
                     .HasMaxLength(50);
 
                 entity.HasIndex(e => e.Email);
-                entity.HasIndex(e => e.MercadoPagoPaymentId);
+                entity.HasIndex(e => e.MercadoPagoId);
             });
 
             // ============================================

@@ -21,7 +21,7 @@
         public OrderStatus Status { get; set; } = OrderStatus.Pendente;
 
         //Informações de pagamento
-        public string? MercadoPagoPaymentId { get; set; }
+        public string? MercadoPagoId { get; set; }
         public string? MercadoPagoPaymentStatus { get; set; }
 
         //Relacionamento

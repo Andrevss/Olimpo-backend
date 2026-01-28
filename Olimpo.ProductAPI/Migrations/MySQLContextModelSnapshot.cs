@@ -61,7 +61,7 @@ namespace Olimpo.ProductAPI.Migrations
                         new
                         {
                             Id = 1L,
-                            CreatedAt = new DateTime(2026, 1, 26, 19, 2, 53, 759, DateTimeKind.Utc).AddTicks(7270),
+                            CreatedAt = new DateTime(2026, 1, 27, 21, 6, 49, 529, DateTimeKind.Utc).AddTicks(1310),
                             Description = "Produtos eletrônicos em geral",
                             IsActive = true,
                             Name = "Eletrônicos"
@@ -69,7 +69,7 @@ namespace Olimpo.ProductAPI.Migrations
                         new
                         {
                             Id = 2L,
-                            CreatedAt = new DateTime(2026, 1, 26, 19, 2, 53, 759, DateTimeKind.Utc).AddTicks(7272),
+                            CreatedAt = new DateTime(2026, 1, 27, 21, 6, 49, 529, DateTimeKind.Utc).AddTicks(1313),
                             Description = "Vestuário e acessórios",
                             IsActive = true,
                             Name = "Roupas"
@@ -77,7 +77,7 @@ namespace Olimpo.ProductAPI.Migrations
                         new
                         {
                             Id = 3L,
-                            CreatedAt = new DateTime(2026, 1, 26, 19, 2, 53, 759, DateTimeKind.Utc).AddTicks(7273),
+                            CreatedAt = new DateTime(2026, 1, 27, 21, 6, 49, 529, DateTimeKind.Utc).AddTicks(1314),
                             Description = "Livros físicos e digitais",
                             IsActive = true,
                             Name = "Livros"
@@ -125,7 +125,7 @@ namespace Olimpo.ProductAPI.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
-                    b.Property<string>("MercadoPagoPaymentId")
+                    b.Property<string>("MercadoPagoId")
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
@@ -166,7 +166,7 @@ namespace Olimpo.ProductAPI.Migrations
 
                     b.HasIndex("Email");
 
-                    b.HasIndex("MercadoPagoPaymentId");
+                    b.HasIndex("MercadoPagoId");
 
                     b.ToTable("orders", (string)null);
                 });
@@ -272,7 +272,7 @@ namespace Olimpo.ProductAPI.Migrations
                         {
                             Id = 1L,
                             CategoryId = 1L,
-                            CreatedAt = new DateTime(2026, 1, 26, 19, 2, 53, 759, DateTimeKind.Utc).AddTicks(7387),
+                            CreatedAt = new DateTime(2026, 1, 27, 21, 6, 49, 529, DateTimeKind.Utc).AddTicks(1467),
                             Description = "Notebook de alta performance para jogos",
                             ImageUrl = "https://via.placeholder.com/300",
                             IsActive = true,
@@ -284,7 +284,7 @@ namespace Olimpo.ProductAPI.Migrations
                         {
                             Id = 2L,
                             CategoryId = 2L,
-                            CreatedAt = new DateTime(2026, 1, 26, 19, 2, 53, 759, DateTimeKind.Utc).AddTicks(7389),
+                            CreatedAt = new DateTime(2026, 1, 27, 21, 6, 49, 529, DateTimeKind.Utc).AddTicks(1469),
                             Description = "Camiseta 100% algodão",
                             ImageUrl = "https://via.placeholder.com/300",
                             IsActive = true,
