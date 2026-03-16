@@ -6,6 +6,7 @@
         public string Description { get; set; } = string.Empty;
         public decimal Price { get; set; }
         public int Stock { get; set; }
+        public int ReservedStock { get; set; } = 0;
         public string ImageUrl { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
 
@@ -14,5 +15,7 @@
 
         // Relacionamento: Um produto pertence a uma categoria
         public virtual Category Category { get; set; } = null!;
+
+        public int AvailableStock => Stock - ReservedStock;
     }
 }

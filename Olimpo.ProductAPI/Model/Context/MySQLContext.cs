@@ -9,6 +9,7 @@ namespace Olimpo.ProductAPI.Model.Context
 
         // DbSets - Representam as tabelas no banco
         public DbSet<Product> Products { get; set; }
+        public DbSet<StockReservation> StockReservation { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
@@ -81,6 +82,12 @@ namespace Olimpo.ProductAPI.Model.Context
                     .IsRequired();
 
                 entity.Property(e => e.UpdatedAt);
+
+                entity.Property(e => e.ReservedStock)
+                    .IsRequired()
+                    .HasDefaultValue(0);
+
+                entity.Ignore(e => e.AvailableStock); // Propriedade calculada, não mapeada
 
                 // Relacionamento: Product -> Category
                 entity.HasOne(p => p.Category)
@@ -171,6 +178,34 @@ namespace Olimpo.ProductAPI.Model.Context
 
                 entity.HasIndex(e => e.OrderId);
                 entity.HasIndex(e => e.ProductId);
+            });
+
+            // ============================================
+            // CONFIGURAÇÃO DA TABELA STOCK_RESERVATION
+            // ============================================
+            modelBuilder.Entity<StockReservation>(entity =>
+            {
+                entity.ToTable("stock_reservations");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Quantity).IsRequired();
+                entity.Property(e => e.ExpireAt).IsRequired();
+                entity.Property(e => e.IsReleased).IsRequired().HasDefaultValue(false);
+                entity.Property(e => e.CreatedAt).IsRequired();
+
+                entity.HasOne(sr => sr.Product)
+                    .WithMany()
+                    .HasForeignKey(sr => sr.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(sr => sr.Order)
+                    .WithMany()
+                    .HasForeignKey(sr => sr.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.ExpireAt);
+                entity.HasIndex(e => e.IsReleased);
+                entity.HasIndex(e => new { e.OrderId, e.IsReleased });
             });
 
             // ============================================

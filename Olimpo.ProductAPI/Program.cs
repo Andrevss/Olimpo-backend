@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Olimpo.ProductAPI.Model.Context;
 using Olimpo.ProductAPI.Repository;
@@ -29,15 +30,25 @@ builder.Services.AddDbContext<MySQLContext>(options =>
 );
 
 // AutoMapper
-builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+builder.Services.AddSingleton<IMapper>(_ =>
+{
+    var config = new MapperConfiguration(cfg =>
+    {
+        cfg.AddMaps(AppDomain.CurrentDomain.GetAssemblies());
+    });
 
+    return config.CreateMapper();
+});
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IStockReservationRepository, StockReservationRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddHttpClient<IMercadoPagoService, MercadoPagoService>();
 
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHostedService<StockReservationCleanupService>();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo

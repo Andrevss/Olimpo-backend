@@ -1,4 +1,5 @@
 ﻿using Olimpo.ProductAPI.Model.Entities;
+using Olimpo.ProductAPI.Model.Entities;
 using System.Text;
 using System.Text.Json;
 
@@ -92,7 +93,7 @@ namespace Olimpo.ProductAPI.Services
                 // Retornar URL de checkout
                 // Para produção: init_point
                 // Para testes: sandbox_init_point
-                return result.GetProperty("sandbox_init_point").GetString()!;
+                return result.GetProperty("init_point").GetString()!;
             }
             catch (Exception ex)
             {
@@ -117,7 +118,10 @@ namespace Olimpo.ProductAPI.Services
                 {
                     Status = payment.GetProperty("status").GetString()!,
                     PaymentId = payment.GetProperty("id").GetInt64().ToString(),
-                    Amount = payment.GetProperty("transaction_amount").GetDecimal()
+                    Amount = payment.GetProperty("transaction_amount").GetDecimal(),
+                    ExternalReference = payment.TryGetProperty("external_reference", out var externalReference)
+                        ? externalReference.GetString()
+                        : null
                 };
             }
             catch (Exception ex)

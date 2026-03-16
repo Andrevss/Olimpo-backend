@@ -13,13 +13,15 @@ namespace Olimpo.ProductAPI.Controllers
     {
         private readonly IOrderRepository _orderRepository;
         private readonly IProductRepository _productRepository;
+        private readonly IStockReservationRepository _stockReservationRepository;
         private readonly IMercadoPagoService _mercadoPagoService;
         private readonly IMapper _mapper;
 
-        public OrdersController(IOrderRepository orderRepository, IProductRepository productRepository, IMercadoPagoService mercadoPagoService, IMapper mapper)
+        public OrdersController(IOrderRepository orderRepository, IProductRepository productRepository, IStockReservationRepository stockReservationRepository ,IMercadoPagoService mercadoPagoService, IMapper mapper)
         {
             _orderRepository = orderRepository;
             _productRepository = productRepository;
+            _stockReservationRepository = stockReservationRepository;
             _mercadoPagoService = mercadoPagoService;
             _mapper = mapper;
         }
@@ -52,9 +54,9 @@ namespace Olimpo.ProductAPI.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<OrderDTO>> Create([FromBody] CreateOrderDTO orderDto)
         {
-            // Validar e buscar produtos (código existente mantém)
             var orderItems = new List<OrderItem>();
             var productsToUpdate = new List<Product>();
+            var reservations = new List<StockReservation>();
             decimal totalAmount = 0;
 
             foreach (var item in orderDto.Items)
@@ -67,8 +69,9 @@ namespace Olimpo.ProductAPI.Controllers
                 if (!product.IsActive)
                     return BadRequest(new { message = $"Produto '{product.Name}' não está disponível" });
 
-                if (product.Stock < item.Quantity)
-                    return BadRequest(new { message = $"Estoque insuficiente para '{product.Name}'. Disponível: {product.Stock}" });
+                // ✅ VERIFICAR ESTOQUE DISPONÍVEL (descontando reservas)
+                if (product.AvailableStock < item.Quantity)
+                    return BadRequest(new { message = $"Estoque insuficiente para '{product.Name}'. Disponível: {product.AvailableStock}" });
 
                 var orderItem = new OrderItem
                 {
@@ -82,7 +85,8 @@ namespace Olimpo.ProductAPI.Controllers
                 orderItems.Add(orderItem);
                 totalAmount += orderItem.TotalPrice;
 
-                product.Stock -= item.Quantity;
+                // ✅ RESERVAR ESTOQUE (não diminui Stock, só ReservedStock)
+                product.ReservedStock += item.Quantity;
                 product.UpdatedAt = DateTime.UtcNow;
                 productsToUpdate.Add(product);
             }
@@ -95,29 +99,47 @@ namespace Olimpo.ProductAPI.Controllers
 
             var createdOrder = await _orderRepository.CreateAsync(order);
 
-            // Salvar alterações no estoque
+            // ✅ SALVAR RESERVAS DE ESTOQUE (expira em 30 minutos)
+            foreach (var item in orderItems)
+            {
+                var reservation = new StockReservation
+                {
+                    ProductId = item.ProductId,
+                    OrderId = createdOrder.Id,
+                    Quantity = item.Quantity,
+                    ExpireAt = DateTime.UtcNow.AddMinutes(30) // ⏱️ 30 minutos para pagar
+                };
+
+                reservations.Add(reservation);
+                await _stockReservationRepository.CreateAsync(reservation);
+            }
+
+            // Atualizar ReservedStock dos produtos
             foreach (var product in productsToUpdate)
             {
                 await _productRepository.UpdateAsync(product);
             }
 
-            // CRIAR PREFERÊNCIA NO MERCADO PAGO
+            // Criar preferência no Mercado Pago
             string paymentUrl;
             try
             {
                 paymentUrl = await _mercadoPagoService.CreatePreferenceAsync(createdOrder);
-
-                // Salvar ID da preferência no pedido
-                createdOrder.MercadoPagoId = paymentUrl.Split('/').Last(); // Extrai ID da URL
+                createdOrder.MercadoPagoId = paymentUrl.Split('/').Last();
                 await _orderRepository.UpdateStatusAsync(createdOrder.Id, OrderStatus.Pendente);
             }
             catch (Exception ex)
             {
+                // Se falhar, liberar reservas
+                foreach (var reservation in reservations)
+                {
+                    await _stockReservationRepository.ReleaseReservationAsync(reservation.Id);
+                }
                 return StatusCode(500, new { message = "Erro ao gerar link de pagamento", error = ex.Message });
             }
 
             var resultDto = _mapper.Map<OrderDTO>(createdOrder);
-            resultDto.PaymentUrl = paymentUrl; // Retorna URL para o frontend
+            resultDto.PaymentUrl = paymentUrl;
 
             return CreatedAtAction(
                 nameof(GetById),

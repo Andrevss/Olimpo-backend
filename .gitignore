@@ -482,3 +482,14 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# --- Project-specific secrets ---
+Olimpo.ProductAPI/appsettings.json
+Olimpo.ProductAPI/appsettings.Development.json
+Olimpo.ProductAPI/appsettings.*.json
+!Olimpo.ProductAPI/appsettings.Example.json
+!Olimpo.ProductAPI/appsettings.Development.Example.json
+
+# Local env files
+.env
+.env.*

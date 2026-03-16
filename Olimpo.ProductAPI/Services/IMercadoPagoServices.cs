@@ -13,5 +13,6 @@ namespace Olimpo.ProductAPI.Services
         public string Status { get; set; } = string.Empty; 
         public string PaymentId { get; set; } = string.Empty;
         public decimal Amount { get; set; }
+        public string? ExternalReference { get; set; }
     }
 }
