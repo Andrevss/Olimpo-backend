@@ -1,5 +1,4 @@
 ﻿using Olimpo.ProductAPI.Model.Entities;
-using Olimpo.ProductAPI.Model.Entities;
 using System.Text;
 using System.Text.Json;
 
@@ -13,6 +12,7 @@ namespace Olimpo.ProductAPI.Services
         private readonly string _successUrl;
         private readonly string _failureUrl;
         private readonly string _pendingUrl;
+        private readonly bool _useSandbox;
 
         public MercadoPagoService(IConfiguration configuration, HttpClient httpClient)
         {
@@ -22,37 +22,38 @@ namespace Olimpo.ProductAPI.Services
             _successUrl = _configuration["MercadoPago:SuccessUrl"]!;
             _failureUrl = _configuration["MercadoPago:FailureUrl"]!;
             _pendingUrl = _configuration["MercadoPago:PendingUrl"]!;
+            _useSandbox = bool.TryParse(_configuration["MercadoPago:UseSandbox"], out var useSandbox) && useSandbox;
         }
 
         public async Task<string> CreatePreferenceAsync(Order order)
         {
             try
             {
-                // Criar objeto de preferência
-                var preference = new
-                {
-                    items = order.OrderItems.Select(item => new
+                var validItems = order.OrderItems
+                    .Where(item => item.Quantity > 0 && item.UnitPrice > 0 && !string.IsNullOrWhiteSpace(item.ProductName))
+                    .Select(item => new
                     {
-                        title = item.ProductName,
+                        title = string.IsNullOrWhiteSpace(item.Size) ? item.ProductName : $"{item.ProductName} - {item.Size}",
                         quantity = item.Quantity,
                         currency_id = "BRL",
                         unit_price = item.UnitPrice
-                    }).ToArray(),
+                    })
+                    .ToArray();
+
+                if (!validItems.Any())
+                {
+                    throw new Exception("Pedido sem itens válidos para criar preferência (quantity > 0, unit_price > 0 e title obrigatório).");
+                }
+
+                // Criar objeto de preferência
+                var preference = new
+                {
+                    items = validItems,
 
                     payer = new
                     {
                         name = order.NomeCompleto,
-                        email = order.Email,
-                        phone = new
-                        {
-                            number = order.Telefone
-                        },
-                        address = new
-                        {
-                            zip_code = order.Cep,
-                            street_name = order.Rua,
-                            street_number = order.Numero
-                        }
+                        email = order.Email
                     },
 
                     back_urls = new
@@ -85,15 +86,25 @@ namespace Olimpo.ProductAPI.Services
                 request.Headers.Add("Authorization", $"Bearer {_accessToken}");
 
                 var response = await _httpClient.SendAsync(request);
-                response.EnsureSuccessStatusCode();
-
                 var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception($"Status {(int)response.StatusCode} ({response.StatusCode}). Detalhes: {responseContent}");
+                }
+
                 var result = JsonSerializer.Deserialize<JsonElement>(responseContent);
 
                 // Retornar URL de checkout
                 // Para produção: init_point
                 // Para testes: sandbox_init_point
-                return result.GetProperty("init_point").GetString()!;
+                var pointProperty = _useSandbox ? "sandbox_init_point" : "init_point";
+                if (!result.TryGetProperty(pointProperty, out var checkoutUrlProperty))
+                {
+                    throw new Exception($"Campo '{pointProperty}' não encontrado na resposta do Mercado Pago: {responseContent}");
+                }
+
+                return checkoutUrlProperty.GetString()!;
             }
             catch (Exception ex)
             {

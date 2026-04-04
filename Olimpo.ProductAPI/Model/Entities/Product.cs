@@ -16,6 +16,9 @@
         // Relacionamento: Um produto pertence a uma categoria
         public virtual Category Category { get; set; } = null!;
 
+        // Relacionamento: um produto pode ter variações por tamanho
+        public virtual ICollection<ProductVariant> Variants { get; set; } = new List<ProductVariant>();
+
         public int AvailableStock => Stock - ReservedStock;
     }
 }

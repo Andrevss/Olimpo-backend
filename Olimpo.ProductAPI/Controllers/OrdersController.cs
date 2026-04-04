@@ -54,13 +54,24 @@ namespace Olimpo.ProductAPI.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<OrderDTO>> Create([FromBody] CreateOrderDTO orderDto)
         {
+            if (orderDto.Items == null || !orderDto.Items.Any())
+            {
+                return BadRequest(new { message = "O pedido deve conter pelo menos 1 item" });
+            }
+
             var orderItems = new List<OrderItem>();
             var productsToUpdate = new List<Product>();
+            var variantsToUpdate = new List<ProductVariant>();
             var reservations = new List<StockReservation>();
             decimal totalAmount = 0;
 
             foreach (var item in orderDto.Items)
             {
+                if (item.Quantity <= 0)
+                {
+                    return BadRequest(new { message = "Quantidade do item deve ser maior que zero" });
+                }
+
                 var product = await _productRepository.GetByIdAsync(item.ProductId);
 
                 if (product == null)
@@ -69,14 +80,41 @@ namespace Olimpo.ProductAPI.Controllers
                 if (!product.IsActive)
                     return BadRequest(new { message = $"Produto '{product.Name}' não está disponível" });
 
-                // ✅ VERIFICAR ESTOQUE DISPONÍVEL (descontando reservas)
-                if (product.AvailableStock < item.Quantity)
-                    return BadRequest(new { message = $"Estoque insuficiente para '{product.Name}'. Disponível: {product.AvailableStock}" });
+                ProductVariant? variant = null;
+                if (item.ProductVariantId.HasValue)
+                {
+                    variant = await _productRepository.GetVariantByIdAsync(item.ProductVariantId.Value);
+                    if (variant == null || variant.ProductId != product.Id)
+                    {
+                        return BadRequest(new { message = $"Variação ID {item.ProductVariantId.Value} não encontrada para o produto '{product.Name}'" });
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(item.Size))
+                {
+                    variant = await _productRepository.GetVariantByProductAndSizeAsync(product.Id, item.Size.Trim().ToUpperInvariant());
+                    if (variant == null)
+                    {
+                        return BadRequest(new { message = $"Tamanho '{item.Size}' não encontrado para o produto '{product.Name}'" });
+                    }
+                }
+
+                var availableStock = variant?.AvailableStock ?? product.AvailableStock;
+                if (availableStock < item.Quantity)
+                {
+                    return BadRequest(new
+                    {
+                        message = variant == null
+                            ? $"Estoque insuficiente para '{product.Name}'. Disponível: {availableStock}"
+                            : $"Estoque insuficiente para '{product.Name}' tamanho '{variant.Size}'. Disponível: {availableStock}"
+                    });
+                }
 
                 var orderItem = new OrderItem
                 {
                     ProductId = product.Id,
+                    ProductVariantId = variant?.Id,
                     ProductName = product.Name,
+                    Size = variant?.Size,
                     UnitPrice = product.Price,
                     Quantity = item.Quantity,
                     TotalPrice = product.Price * item.Quantity
@@ -86,9 +124,18 @@ namespace Olimpo.ProductAPI.Controllers
                 totalAmount += orderItem.TotalPrice;
 
                 // ✅ RESERVAR ESTOQUE (não diminui Stock, só ReservedStock)
-                product.ReservedStock += item.Quantity;
-                product.UpdatedAt = DateTime.UtcNow;
-                productsToUpdate.Add(product);
+                if (variant != null)
+                {
+                    variant.ReservedStock += item.Quantity;
+                    variant.UpdatedAt = DateTime.UtcNow;
+                    variantsToUpdate.Add(variant);
+                }
+                else
+                {
+                    product.ReservedStock += item.Quantity;
+                    product.UpdatedAt = DateTime.UtcNow;
+                    productsToUpdate.Add(product);
+                }
             }
 
             // Criar pedido
@@ -105,6 +152,7 @@ namespace Olimpo.ProductAPI.Controllers
                 var reservation = new StockReservation
                 {
                     ProductId = item.ProductId,
+                    ProductVariantId = item.ProductVariantId,
                     OrderId = createdOrder.Id,
                     Quantity = item.Quantity,
                     ExpireAt = DateTime.UtcNow.AddMinutes(30) // ⏱️ 30 minutos para pagar
@@ -118,6 +166,11 @@ namespace Olimpo.ProductAPI.Controllers
             foreach (var product in productsToUpdate)
             {
                 await _productRepository.UpdateAsync(product);
+            }
+
+            foreach (var variant in variantsToUpdate)
+            {
+                await _productRepository.UpdateVariantAsync(variant);
             }
 
             // Criar preferência no Mercado Pago

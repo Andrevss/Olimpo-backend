@@ -24,6 +24,8 @@
     {
         public long Id { get; set; }
         public long ProductId { get; set; }
+        public long? ProductVariantId { get; set; }
+        public string? Size { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public decimal UnitPrice { get; set; }
         public int Quantity { get; set; }
@@ -53,6 +55,8 @@
     public class CreateOrderItemDTO
     {
         public long ProductId { get; set; }
+        public long? ProductVariantId { get; set; }
+        public string? Size { get; set; }
         public int Quantity { get; set; }
     }
 

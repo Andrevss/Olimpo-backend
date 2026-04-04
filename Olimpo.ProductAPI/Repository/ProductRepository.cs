@@ -18,6 +18,7 @@ namespace Olimpo.ProductAPI.Repository
         {
             return await _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.Variants)
                 .Where(p => p.IsActive)
                 .ToListAsync();
         }
@@ -26,6 +27,7 @@ namespace Olimpo.ProductAPI.Repository
         {
             return await _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.Variants)
                 .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
         }
 
@@ -33,6 +35,7 @@ namespace Olimpo.ProductAPI.Repository
         {
             return await _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.Variants)
                 .Where(p => p.CategoryId == categoryId && p.IsActive)
                 .ToListAsync();
         }
@@ -62,6 +65,29 @@ namespace Olimpo.ProductAPI.Repository
         public async Task<bool> ExistsAsync(long id)
         {
             return await _context.Products.AnyAsync(p => p.Id == id && p.IsActive);
+        }
+
+        public async Task<ProductVariant?> GetVariantByIdAsync(long variantId)
+        {
+            return await _context.ProductVariants
+                .Include(v => v.Product)
+                .FirstOrDefaultAsync(v => v.Id == variantId && v.Product.IsActive);
+        }
+
+        public async Task<ProductVariant?> GetVariantByProductAndSizeAsync(long productId, string size)
+        {
+            var normalizedSize = size.Trim().ToUpperInvariant();
+
+            return await _context.ProductVariants
+                .Include(v => v.Product)
+                .FirstOrDefaultAsync(v => v.ProductId == productId && v.Size.ToUpper() == normalizedSize && v.Product.IsActive);
+        }
+
+        public async Task UpdateVariantAsync(ProductVariant variant)
+        {
+            variant.UpdatedAt = DateTime.UtcNow;
+            _context.ProductVariants.Update(variant);
+            await _context.SaveChangesAsync();
         }
     }
 }

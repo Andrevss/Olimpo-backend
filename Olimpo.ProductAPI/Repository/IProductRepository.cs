@@ -11,6 +11,9 @@ namespace Olimpo.ProductAPI.Repository
         Task<bool> DeleteAsync(Product product);
         Task<bool> ExistsAsync(long id);
         Task<IEnumerable<Product>> GetByCategoryIdAsync(long categoryId);
+        Task<ProductVariant?> GetVariantByIdAsync(long variantId);
+        Task<ProductVariant?> GetVariantByProductAndSizeAsync(long productId, string size);
+        Task UpdateVariantAsync(ProductVariant variant);
 
     }
 }

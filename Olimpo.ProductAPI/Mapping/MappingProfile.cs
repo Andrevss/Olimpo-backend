@@ -17,9 +17,11 @@ namespace Olimpo.ProductAPI.Mappings
             CreateMap<Product, ProductDTO>()
                 .ForMember(dest => dest.CategoryName,
                           opt => opt.MapFrom(src => src.Category.Name));
+            CreateMap<ProductVariant, ProductVariantDTO>();
 
             CreateMap<CreateProductDTO, Product>();
             CreateMap<UpdateProductDTO, Product>();
+            CreateMap<CreateProductVariantDTO, ProductVariant>();
 
             // ========== ORDER MAPPINGS ==========
             CreateMap<Order, OrderDTO>()

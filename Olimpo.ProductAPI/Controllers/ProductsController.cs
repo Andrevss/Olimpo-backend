@@ -65,6 +65,14 @@ namespace Olimpo.ProductAPI.Controllers
                 return BadRequest(new { message = "Categoria inválida" });
             }
             var product = _mapper.Map<Product>(productCreateDto);
+
+            if (productCreateDto.Variants.Any())
+            {
+                product.Variants = _mapper.Map<List<ProductVariant>>(productCreateDto.Variants);
+                product.Stock = product.Variants.Sum(v => v.Stock);
+                product.ReservedStock = product.Variants.Sum(v => v.ReservedStock);
+            }
+
             var createdProduct = await _repository.CreateAsync(product);
             var productDto = _mapper.Map<ProductDTO>(createdProduct);
             return CreatedAtAction(nameof(GetById), new { id = productDto.Id }, productDto);
@@ -81,7 +89,25 @@ namespace Olimpo.ProductAPI.Controllers
             {
                 return NoContent();
             }
-            _mapper.Map(productUpdateDto, existingProduct);
+            existingProduct.Name = productUpdateDto.Name;
+            existingProduct.Description = productUpdateDto.Description;
+            existingProduct.Price = productUpdateDto.Price;
+            existingProduct.Stock = productUpdateDto.Stock;
+            existingProduct.ImageUrl = productUpdateDto.ImageUrl;
+            existingProduct.CategoryId = productUpdateDto.CategoryId;
+
+            if (productUpdateDto.Variants.Any())
+            {
+                existingProduct.Variants.Clear();
+                foreach (var variantDto in productUpdateDto.Variants)
+                {
+                    existingProduct.Variants.Add(_mapper.Map<ProductVariant>(variantDto));
+                }
+
+                existingProduct.Stock = existingProduct.Variants.Sum(v => v.Stock);
+                existingProduct.ReservedStock = existingProduct.Variants.Sum(v => v.ReservedStock);
+            }
+
             await _repository.UpdateAsync(existingProduct);
             return Ok();
         }

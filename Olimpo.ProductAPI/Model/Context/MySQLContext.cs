@@ -9,6 +9,7 @@ namespace Olimpo.ProductAPI.Model.Context
 
         // DbSets - Representam as tabelas no banco
         public DbSet<Product> Products { get; set; }
+        public DbSet<ProductVariant> ProductVariants { get; set; }
         public DbSet<StockReservation> StockReservation { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Order> Orders { get; set; }
@@ -100,6 +101,39 @@ namespace Olimpo.ProductAPI.Model.Context
                 entity.HasIndex(e => e.CategoryId);
             });
 
+            modelBuilder.Entity<ProductVariant>(entity =>
+            {
+                entity.ToTable("product_variants");
+
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Size)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.Stock)
+                    .IsRequired()
+                    .HasDefaultValue(0);
+
+                entity.Property(e => e.ReservedStock)
+                    .IsRequired()
+                    .HasDefaultValue(0);
+
+                entity.Property(e => e.CreatedAt)
+                    .IsRequired();
+
+                entity.Property(e => e.UpdatedAt);
+
+                entity.Ignore(e => e.AvailableStock);
+
+                entity.HasOne(v => v.Product)
+                    .WithMany(p => p.Variants)
+                    .HasForeignKey(v => v.ProductId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.ProductId, e.Size }).IsUnique();
+            });
+
             // ============================================
             // CONFIGURAÇÃO DA TABELA ORDER
             // ============================================
@@ -176,8 +210,14 @@ namespace Olimpo.ProductAPI.Model.Context
                     .HasForeignKey(oi => oi.ProductId)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                entity.HasOne(oi => oi.ProductVariant)
+                    .WithMany()
+                    .HasForeignKey(oi => oi.ProductVariantId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 entity.HasIndex(e => e.OrderId);
                 entity.HasIndex(e => e.ProductId);
+                entity.HasIndex(e => e.ProductVariantId);
             });
 
             // ============================================
@@ -198,6 +238,11 @@ namespace Olimpo.ProductAPI.Model.Context
                     .HasForeignKey(sr => sr.ProductId)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                entity.HasOne(sr => sr.ProductVariant)
+                    .WithMany()
+                    .HasForeignKey(sr => sr.ProductVariantId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 entity.HasOne(sr => sr.Order)
                     .WithMany()
                     .HasForeignKey(sr => sr.OrderId)
@@ -206,6 +251,7 @@ namespace Olimpo.ProductAPI.Model.Context
                 entity.HasIndex(e => e.ExpireAt);
                 entity.HasIndex(e => e.IsReleased);
                 entity.HasIndex(e => new { e.OrderId, e.IsReleased });
+                entity.HasIndex(e => e.ProductVariantId);
             });
 
             // ============================================
@@ -256,6 +302,36 @@ namespace Olimpo.ProductAPI.Model.Context
                     Stock = 50,
                     ImageUrl = "https://via.placeholder.com/300",
                     CategoryId = 2,
+                    CreatedAt = DateTime.UtcNow
+                }
+            );
+
+            modelBuilder.Entity<ProductVariant>().HasData(
+                new ProductVariant
+                {
+                    Id = 1,
+                    ProductId = 2,
+                    Size = "P",
+                    Stock = 10,
+                    ReservedStock = 0,
+                    CreatedAt = DateTime.UtcNow
+                },
+                new ProductVariant
+                {
+                    Id = 2,
+                    ProductId = 2,
+                    Size = "M",
+                    Stock = 15,
+                    ReservedStock = 0,
+                    CreatedAt = DateTime.UtcNow
+                },
+                new ProductVariant
+                {
+                    Id = 3,
+                    ProductId = 2,
+                    Size = "G",
+                    Stock = 12,
+                    ReservedStock = 0,
                     CreatedAt = DateTime.UtcNow
                 }
             );

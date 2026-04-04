@@ -18,14 +18,13 @@ namespace Olimpo.ProductAPI.Services
 
         public async Task SendOrderApprovedNotificationAsync(Order order)
         {
-            var to = _configuration["EmailSettings:NotificationTo"];
+            var notificationTo = _configuration["EmailSettings:NotificationTo"];
             var host = _configuration["EmailSettings:SmtpHost"];
             var senderEmail = _configuration["EmailSettings:SenderEmail"];
             var senderName = _configuration["EmailSettings:SenderName"];
             var senderPassword = _configuration["EmailSettings:SenderPassword"];
 
-            if (string.IsNullOrWhiteSpace(to) ||
-                string.IsNullOrWhiteSpace(host) ||
+            if (string.IsNullOrWhiteSpace(host) ||
                 string.IsNullOrWhiteSpace(senderEmail) ||
                 string.IsNullOrWhiteSpace(senderPassword))
             {
@@ -39,9 +38,39 @@ namespace Olimpo.ProductAPI.Services
             var smtpPort = int.TryParse(portValue, out var parsedPort) ? parsedPort : 587;
             var enableSsl = bool.TryParse(sslValue, out var parsedSsl) ? parsedSsl : true;
 
-            var subject = $"[OLIMPO] Pagamento aprovado - Pedido #{order.Id}";
-            var body = BuildEmailBody(order);
+            using var smtpClient = new SmtpClient(host, smtpPort)
+            {
+                EnableSsl = enableSsl,
+                Credentials = new NetworkCredential(senderEmail, senderPassword)
+            };
 
+            // 1) Email administrativo
+            if (!string.IsNullOrWhiteSpace(notificationTo))
+            {
+                var adminSubject = $"[OLIMPO] Pagamento aprovado - Pedido #{order.Id}";
+                var adminBody = BuildAdminEmailBody(order);
+                await SendEmailAsync(smtpClient, senderEmail, senderName, notificationTo, adminSubject, adminBody);
+                _logger.LogInformation("Email administrativo enviado para {EmailDestino}, pedido {OrderId}", notificationTo, order.Id);
+            }
+
+            // 2) Email do cliente (mensagem clássica)
+            if (!string.IsNullOrWhiteSpace(order.Email))
+            {
+                var customerSubject = $"Seu pedido #{order.Id} foi confirmado - OLIMPO";
+                var customerBody = BuildCustomerEmailBody(order);
+                await SendEmailAsync(smtpClient, senderEmail, senderName, order.Email, customerSubject, customerBody);
+                _logger.LogInformation("Email de confirmação enviado para cliente {ClientEmail}, pedido {OrderId}", order.Email, order.Id);
+            }
+        }
+
+        private static async Task SendEmailAsync(
+            SmtpClient smtpClient,
+            string senderEmail,
+            string? senderName,
+            string to,
+            string subject,
+            string body)
+        {
             using var message = new MailMessage
             {
                 From = new MailAddress(senderEmail, string.IsNullOrWhiteSpace(senderName) ? "Olimpo" : senderName),
@@ -51,18 +80,10 @@ namespace Olimpo.ProductAPI.Services
             };
 
             message.To.Add(to);
-
-            using var smtpClient = new SmtpClient(host, smtpPort)
-            {
-                EnableSsl = enableSsl,
-                Credentials = new NetworkCredential(senderEmail, senderPassword)
-            };
-
             await smtpClient.SendMailAsync(message);
-            _logger.LogInformation("Email de pagamento aprovado enviado para {EmailDestino}, pedido {OrderId}", to, order.Id);
         }
 
-        private static string BuildEmailBody(Order order)
+        private static string BuildAdminEmailBody(Order order)
         {
             var sb = new StringBuilder();
 
@@ -108,6 +129,35 @@ namespace Olimpo.ProductAPI.Services
             {
                 sb.AppendLine("Entrega: Não informada (possível retirada)");
             }
+
+            return sb.ToString();
+        }
+
+        private static string BuildCustomerEmailBody(Order order)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine($"Olá, {order.NomeCompleto}!");
+            sb.AppendLine();
+            sb.AppendLine("Recebemos seu pagamento e seu pedido foi confirmado com sucesso.");
+            sb.AppendLine("Obrigado por comprar com a OLIMPO.");
+            sb.AppendLine();
+            sb.AppendLine($"Pedido: #{order.Id}");
+            sb.AppendLine($"Total pago: R$ {order.Total:F2}");
+            sb.AppendLine();
+            sb.AppendLine("Resumo da compra:");
+
+            foreach (var item in order.OrderItems)
+            {
+                var sizeInfo = string.IsNullOrWhiteSpace(item.Size) ? string.Empty : $" | Tam: {item.Size}";
+                sb.AppendLine($"- {item.ProductName}{sizeInfo} | Qtd: {item.Quantity} | R$ {item.TotalPrice:F2}");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("Assim que houver atualização de envio, você será informado.");
+            sb.AppendLine();
+            sb.AppendLine("Atenciosamente,");
+            sb.AppendLine("Equipe OLIMPO");
 
             return sb.ToString();
         }

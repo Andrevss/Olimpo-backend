@@ -18,6 +18,8 @@ namespace Olimpo.ProductAPI.Repository
             return await _context.Orders
                 .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
+                .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.ProductVariant)
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync();
         }
@@ -27,6 +29,8 @@ namespace Olimpo.ProductAPI.Repository
             return await _context.Orders
                 .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
+                .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.ProductVariant)
                 .FirstOrDefaultAsync(o => o.Id == id);
         }
 
@@ -34,6 +38,7 @@ namespace Olimpo.ProductAPI.Repository
         {
             return await _context.Orders
                 .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.ProductVariant)
                 .FirstOrDefaultAsync(o => o.MercadoPagoId == mercadoPagoId);
         }
 

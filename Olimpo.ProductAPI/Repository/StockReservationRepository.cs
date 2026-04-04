@@ -24,6 +24,7 @@ namespace Olimpo.ProductAPI.Repository
         {
             return await _context.StockReservation
                 .Include(sr => sr.Product)
+                .Include(sr => sr.ProductVariant)
                 .Where(sr => sr.OrderId == orderId && !sr.IsReleased)
                 .ToListAsync();
         }
@@ -32,6 +33,7 @@ namespace Olimpo.ProductAPI.Repository
         {
             return await _context.StockReservation
                 .Include(sr => sr.Product)
+                .Include(sr => sr.ProductVariant)
                 .Include(sr => sr.Order)
                 .Where(sr => !sr.IsReleased && sr.ExpireAt < DateTime.UtcNow)
                 .ToListAsync();
@@ -41,13 +43,23 @@ namespace Olimpo.ProductAPI.Repository
         {
             var reservation = await _context.StockReservation
                 .Include(sr => sr.Product)
+                .Include(sr => sr.ProductVariant)
                 .FirstOrDefaultAsync(sr => sr.Id == reservationId);
 
             if (reservation != null && !reservation.IsReleased)
             {
                 reservation.IsReleased = true;
-                reservation.Product.ReservedStock -= reservation.Quantity;
-                reservation.Product.UpdatedAt = DateTime.UtcNow;
+
+                if (reservation.ProductVariant != null)
+                {
+                    reservation.ProductVariant.ReservedStock -= reservation.Quantity;
+                    reservation.ProductVariant.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    reservation.Product.ReservedStock -= reservation.Quantity;
+                    reservation.Product.UpdatedAt = DateTime.UtcNow;
+                }
 
                 await _context.SaveChangesAsync();
             }
@@ -60,8 +72,17 @@ namespace Olimpo.ProductAPI.Repository
             foreach (var reservation in reservations)
             {
                 reservation.IsReleased = true;
-                reservation.Product.ReservedStock -= reservation.Quantity;
-                reservation.Product.UpdatedAt = DateTime.UtcNow;
+
+                if (reservation.ProductVariant != null)
+                {
+                    reservation.ProductVariant.ReservedStock -= reservation.Quantity;
+                    reservation.ProductVariant.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    reservation.Product.ReservedStock -= reservation.Quantity;
+                    reservation.Product.UpdatedAt = DateTime.UtcNow;
+                }
             }
 
             await _context.SaveChangesAsync();

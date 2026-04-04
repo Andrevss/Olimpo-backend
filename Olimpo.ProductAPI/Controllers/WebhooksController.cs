@@ -255,17 +255,32 @@ namespace Olimpo.ProductAPI.Controllers
 
             foreach (var reservation in reservations)
             {
-                var product = await _productRepository.GetByIdAsync(reservation.ProductId);
-
-                if (product != null)
+                if (reservation.ProductVariantId.HasValue)
                 {
-                    // Diminui estoque real
-                    product.Stock -= reservation.Quantity;
-                    product.UpdatedAt = DateTime.UtcNow;
+                    var variant = await _productRepository.GetVariantByIdAsync(reservation.ProductVariantId.Value);
+                    if (variant != null)
+                    {
+                        variant.Stock -= reservation.Quantity;
+                        variant.UpdatedAt = DateTime.UtcNow;
+                        await _productRepository.UpdateVariantAsync(variant);
 
-                    await _productRepository.UpdateAsync(product);
+                        _logger.LogInformation($"📦 Variação {variant.Size} do produto {variant.ProductId}: Stock={variant.Stock}");
+                    }
+                }
+                else
+                {
+                    var product = await _productRepository.GetByIdAsync(reservation.ProductId);
 
-                    _logger.LogInformation($"📦 Produto {product.Name}: Stock={product.Stock}");
+                    if (product != null)
+                    {
+                        // Diminui estoque real
+                        product.Stock -= reservation.Quantity;
+                        product.UpdatedAt = DateTime.UtcNow;
+
+                        await _productRepository.UpdateAsync(product);
+
+                        _logger.LogInformation($"📦 Produto {product.Name}: Stock={product.Stock}");
+                    }
                 }
 
                 // Marcar reserva como liberada
@@ -333,16 +348,31 @@ namespace Olimpo.ProductAPI.Controllers
             {
                 foreach (var item in order.OrderItems)
                 {
-                    var product = await _productRepository.GetByIdAsync(item.ProductId);
-
-                    if (product != null)
+                    if (item.ProductVariantId.HasValue)
                     {
-                        product.Stock += item.Quantity; // Devolve ao estoque
-                        product.UpdatedAt = DateTime.UtcNow;
+                        var variant = await _productRepository.GetVariantByIdAsync(item.ProductVariantId.Value);
+                        if (variant != null)
+                        {
+                            variant.Stock += item.Quantity;
+                            variant.UpdatedAt = DateTime.UtcNow;
+                            await _productRepository.UpdateVariantAsync(variant);
 
-                        await _productRepository.UpdateAsync(product);
+                            _logger.LogInformation($"🔄 Estoque devolvido por reembolso - Produto {item.ProductName} tamanho {variant.Size}: Stock={variant.Stock}");
+                        }
+                    }
+                    else
+                    {
+                        var product = await _productRepository.GetByIdAsync(item.ProductId);
 
-                        _logger.LogInformation($"🔄 Estoque devolvido por reembolso - Produto {product.Name}: Stock={product.Stock}");
+                        if (product != null)
+                        {
+                            product.Stock += item.Quantity; // Devolve ao estoque
+                            product.UpdatedAt = DateTime.UtcNow;
+
+                            await _productRepository.UpdateAsync(product);
+
+                            _logger.LogInformation($"🔄 Estoque devolvido por reembolso - Produto {product.Name}: Stock={product.Stock}");
+                        }
                     }
                 }
             }
