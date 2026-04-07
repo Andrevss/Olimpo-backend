@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Olimpo.ProductAPI.Model.Context;
 using Olimpo.ProductAPI.Repository;
@@ -12,11 +13,21 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173") // Vite ou CRA
+        policy.WithOrigins(
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "https://olimpo081.vercel.app")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -60,6 +71,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 // ============================================
 // MIDDLEWARE PIPELINE
