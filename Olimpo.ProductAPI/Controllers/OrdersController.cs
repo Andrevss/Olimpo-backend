@@ -54,23 +54,25 @@ namespace Olimpo.ProductAPI.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<OrderDTO>> Create([FromBody] CreateOrderDTO orderDto)
         {
-            if (orderDto.Items == null || !orderDto.Items.Any())
+            try
             {
-                return BadRequest(new { message = "O pedido deve conter pelo menos 1 item" });
-            }
-
-            var orderItems = new List<OrderItem>();
-            var productsToUpdate = new List<Product>();
-            var variantsToUpdate = new List<ProductVariant>();
-            var reservations = new List<StockReservation>();
-            decimal totalAmount = 0;
-
-            foreach (var item in orderDto.Items)
-            {
-                if (item.Quantity <= 0)
+                if (orderDto.Items == null || !orderDto.Items.Any())
                 {
-                    return BadRequest(new { message = "Quantidade do item deve ser maior que zero" });
+                    return BadRequest(new { message = "O pedido deve conter pelo menos 1 item" });
                 }
+
+                var orderItems = new List<OrderItem>();
+                var productsToUpdate = new List<Product>();
+                var variantsToUpdate = new List<ProductVariant>();
+                var reservations = new List<StockReservation>();
+                decimal totalAmount = 0;
+
+                foreach (var item in orderDto.Items)
+                {
+                    if (item.Quantity <= 0)
+                    {
+                        return BadRequest(new { message = "Quantidade do item deve ser maior que zero" });
+                    }
 
                 var product = await _productRepository.GetByIdAsync(item.ProductId);
 
@@ -136,69 +138,79 @@ namespace Olimpo.ProductAPI.Controllers
                     product.UpdatedAt = DateTime.UtcNow;
                     productsToUpdate.Add(product);
                 }
-            }
+                }
 
             // Criar pedido
-            var order = _mapper.Map<Order>(orderDto);
-            order.OrderItems = orderItems;
-            order.Total = totalAmount;
-            order.Status = OrderStatus.Pendente;
+                var order = _mapper.Map<Order>(orderDto);
+                order.OrderItems = orderItems;
+                order.Total = totalAmount;
+                order.Status = OrderStatus.Pendente;
 
-            var createdOrder = await _orderRepository.CreateAsync(order);
+                var createdOrder = await _orderRepository.CreateAsync(order);
 
             // ✅ SALVAR RESERVAS DE ESTOQUE (expira em 30 minutos)
-            foreach (var item in orderItems)
-            {
-                var reservation = new StockReservation
+                foreach (var item in orderItems)
                 {
-                    ProductId = item.ProductId,
-                    ProductVariantId = item.ProductVariantId,
-                    OrderId = createdOrder.Id,
-                    Quantity = item.Quantity,
-                    ExpireAt = DateTime.UtcNow.AddMinutes(30) // ⏱️ 30 minutos para pagar
-                };
+                    var reservation = new StockReservation
+                    {
+                        ProductId = item.ProductId,
+                        ProductVariantId = item.ProductVariantId,
+                        OrderId = createdOrder.Id,
+                        Quantity = item.Quantity,
+                        ExpireAt = DateTime.UtcNow.AddMinutes(30) // ⏱️ 30 minutos para pagar
+                    };
 
-                reservations.Add(reservation);
-                await _stockReservationRepository.CreateAsync(reservation);
-            }
+                    reservations.Add(reservation);
+                    await _stockReservationRepository.CreateAsync(reservation);
+                }
 
             // Atualizar ReservedStock dos produtos
-            foreach (var product in productsToUpdate)
-            {
-                await _productRepository.UpdateAsync(product);
-            }
+                foreach (var product in productsToUpdate)
+                {
+                    await _productRepository.UpdateAsync(product);
+                }
 
-            foreach (var variant in variantsToUpdate)
-            {
-                await _productRepository.UpdateVariantAsync(variant);
-            }
+                foreach (var variant in variantsToUpdate)
+                {
+                    await _productRepository.UpdateVariantAsync(variant);
+                }
 
             // Criar preferência no Mercado Pago
-            string paymentUrl;
-            try
-            {
-                paymentUrl = await _mercadoPagoService.CreatePreferenceAsync(createdOrder);
-                createdOrder.MercadoPagoId = paymentUrl.Split('/').Last();
-                await _orderRepository.UpdateStatusAsync(createdOrder.Id, OrderStatus.Pendente);
+                string paymentUrl;
+                try
+                {
+                    paymentUrl = await _mercadoPagoService.CreatePreferenceAsync(createdOrder);
+                    createdOrder.MercadoPagoId = paymentUrl.Split('/').Last();
+                    await _orderRepository.UpdateStatusAsync(createdOrder.Id, OrderStatus.Pendente);
+                }
+                catch (Exception ex)
+                {
+                    // Se falhar, liberar reservas
+                    foreach (var reservation in reservations)
+                    {
+                        await _stockReservationRepository.ReleaseReservationAsync(reservation.Id);
+                    }
+                    return StatusCode(500, new { message = "Erro ao gerar link de pagamento", error = ex.Message });
+                }
+
+                var resultDto = _mapper.Map<OrderDTO>(createdOrder);
+                resultDto.PaymentUrl = paymentUrl;
+
+                return CreatedAtAction(
+                    nameof(GetById),
+                    new { id = resultDto.Id },
+                    resultDto
+                );
             }
             catch (Exception ex)
             {
-                // Se falhar, liberar reservas
-                foreach (var reservation in reservations)
+                return StatusCode(500, new
                 {
-                    await _stockReservationRepository.ReleaseReservationAsync(reservation.Id);
-                }
-                return StatusCode(500, new { message = "Erro ao gerar link de pagamento", error = ex.Message });
+                    message = "Erro interno ao criar pedido",
+                    error = ex.Message,
+                    detail = ex.InnerException?.Message
+                });
             }
-
-            var resultDto = _mapper.Map<OrderDTO>(createdOrder);
-            resultDto.PaymentUrl = paymentUrl;
-
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = resultDto.Id },
-                resultDto
-            );
         }
 
         [HttpPut("{id}/status")]
