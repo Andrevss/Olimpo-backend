@@ -25,8 +25,12 @@ namespace Olimpo.ProductAPI.Mappings
 
             // ========== ORDER MAPPINGS ==========
             CreateMap<Order, OrderDTO>()
-            .ForMember(dest => dest.Status,
-                      opt => opt.MapFrom(src => src.Status.ToString()));
+                .ForMember(dest => dest.Status,
+                    opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.TotalAmount,
+                    opt => opt.MapFrom(src => src.Total))
+                .ForMember(dest => dest.Items,
+                    opt => opt.MapFrom(src => src.OrderItems));
 
             CreateMap<CreateOrderDTO, Order>()
                 .ForMember(dest => dest.OrderItems, opt => opt.Ignore())
